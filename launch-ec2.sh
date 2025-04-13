@@ -1,37 +1,43 @@
 #!/bin/bash
 
-# Ensure AWS CLI is configured and user has necessary permissions for EC2 operations
+# Ensure AWS CLI is configured and the user has necessary permissions for EC2 operations
 
 echo "🔍 Fetching available EC2 Key Pairs..."
-# List available key pairs
 keypairs=$(aws ec2 describe-key-pairs --query "KeyPairs[].KeyName" --region eu-central-1 --output text)
 
 if [ -z "$keypairs" ]; then
+  echo ""
   echo "❌ No key pairs found in your AWS account."
   exit 1
 fi
 
-# Prompt the user to select a keypair from the available list
+# Prompt user to select a key pair
 echo ""
 echo "🔑 Available Key Pairs:"
+PS3="➡️  Select a Key Pair 🔑: "
 select keypair in $keypairs; do
   if [ -n "$keypair" ]; then
-    echo "✅ You selected Key Pair: $keypair"
+    echo ""
+    echo "✅ You selected Key Pair 🔑: $keypair"
     break
   else
+    echo ""
     echo "❌ Invalid selection. Please select a valid key pair."
   fi
 done
 
-# Prompt for the instance type
+# Prompt for EC2 instance type
 echo ""
-echo "💻 Select the EC2 instance type:"
+echo "💻 Available EC2 Instance Types:"
 instance_types=("t2.micro" "t2.small" "t2.medium" "t3.micro" "t3.small" "t3.medium")
+PS3="➡️  Select an Instance Type 💻: "
 select instance_type in "${instance_types[@]}"; do
   if [ -n "$instance_type" ]; then
-    echo "✅ You selected Instance Type: $instance_type"
+    echo ""
+    echo "✅ You selected Instance Type 💻: $instance_type"
     break
   else
+    echo ""
     echo "❌ Invalid selection. Please select a valid instance type."
   fi
 done
@@ -42,44 +48,45 @@ echo "🔒 Fetching existing security groups..."
 security_groups=$(aws ec2 describe-security-groups --query "SecurityGroups[].GroupName" --region eu-central-1 --output text)
 
 if [ -z "$security_groups" ]; then
+  echo ""
   echo "❌ No security groups found in your AWS account."
   exit 1
 fi
 
-# Prompt the user to select a security group
+# Prompt user to select a security group
 echo ""
 echo "🔐 Available Security Groups:"
+PS3="➡️  Select a Security Group 🔐: "
 select security_group in $security_groups; do
   if [ -n "$security_group" ]; then
-    echo "✅ You selected Security Group: $security_group"
+    echo ""
+    echo "✅ You selected Security Group 🔐: $security_group"
     break
   else
+    echo ""
     echo "❌ Invalid selection. Please select a valid security group."
   fi
 done
 
-# Set the correct AMI ID for Ubuntu 20.04
+# Set AMI ID (Ubuntu 20.04 LTS)
 ami_id="ami-03250b0e01c28d196"
-
-# Debugging output
-echo "Debug: Using AMI ID: $ami_id"
+echo ""
+echo "🧠 Using AMI ID: $ami_id"
 
 if [ -z "$ami_id" ]; then
+  echo ""
   echo "❌ No AMI ID found."
   exit 1
 fi
 
-echo "✅ Using AMI ID: $ami_id"
-
-# Launch the EC2 instance (this part will only run once)
+# Launch the EC2 instance
 echo ""
-echo "🚀 Launching the EC2 instance with the following details:"
-echo "🔑 Key Pair:    $keypair"
-echo "Instance Type:  $instance_type"
-echo "Security Group: $security_group"
-echo "AMI ID:         $ami_id"
+echo "🚀 Launching EC2 instance with the following settings:"
+echo "🔑 Key Pair:        $keypair"
+echo "💻 Instance Type:   $instance_type"
+echo "🔐 Security Group:  $security_group"
+echo "🖼️ AMI ID:          $ami_id"
 
-# Run the EC2 instance and ensure it's only triggered once
 instance_id=$(aws ec2 run-instances \
   --image-id "$ami_id" \
   --instance-type "$instance_type" \
@@ -90,32 +97,37 @@ instance_id=$(aws ec2 run-instances \
   --output text)
 
 if [ "$instance_id" == "None" ]; then
+  echo ""
   echo "❌ Failed to launch the EC2 instance."
   exit 1
 fi
 
-echo "✅ EC2 instance launched successfully! Instance ID: $instance_id"
+echo "✅ EC2 instance launched! Instance ID: $instance_id"
 
-# Add a name tag to the instance
-echo "🏷️ Tagging the instance with the name 'GH-Actions-Demo'..."
-aws ec2 create-tags --resources "$instance_id" --tags Key=Name,Value=GH-Actions-Demo --region eu-central-1
+# Add a Name tag to the instance
+echo "🏷️ Tagging instance as 'GH-Actions-Demo'..."
+aws ec2 create-tags --resources "$instance_id" \
+  --tags Key=Name,Value=GH-Actions-Demo \
+  --region eu-central-1
 
-echo "✅ Instance tagged with Name=GH-Actions-Demo"
+echo "✅ Tag 🏷️ GH-Actions-Demo applied"
 
-# Wait for the instance to be running
-echo "⏳ Waiting for instance to be in 'running' state..."
-aws ec2 wait instance-running --instance-ids "$instance_id" --region eu-central-1
+# Wait for instance to reach "running" state
+echo "⏳ Waiting for instance to enter 'running' state..."
+aws ec2 wait instance-running \
+  --instance-ids "$instance_id" \
+  --region eu-central-1
 
-# Fetch the public IP address of the instance
+# Fetch the instance's public IP
 public_ip=$(aws ec2 describe-instances \
   --instance-ids "$instance_id" \
   --region eu-central-1 \
   --query "Reservations[0].Instances[0].PublicIpAddress" \
   --output text)
 
-echo "✅ Instance is now running! Public IP: $public_ip"
+echo "✅ Instance is now running! 🌍 Public IP: $public_ip"
 
-# SSH access (just showing the command for you to SSH into the instance)
+# Output SSH command
 echo ""
-echo "Use the following command to SSH into your instance:"
+echo "🔐 Use the following command to SSH into your instance:"
 echo "ssh -i /c/Users/getdz/Downloads/$keypair.pem ubuntu@$public_ip"
