@@ -1,9 +1,16 @@
 #!/bin/bash
 
+# ======================== CONFIGURABLE VARIABLES ========================
+REGION="eu-central-1"
+AMI_ID="ami-03250b0e01c28d196"  # Ubuntu 20.04 LTS
+TAG_NAME="GH-Actions-Demo"
+KEY_PATH="/c/Users/getdz/Downloads"  # Path where your .pem files are stored
+# =======================================================================
+
 # Ensure AWS CLI is configured and the user has necessary permissions for EC2 operations
 
 echo "🔍 Fetching available EC2 Key Pairs..."
-keypairs=$(aws ec2 describe-key-pairs --query "KeyPairs[].KeyName" --region eu-central-1 --output text)
+keypairs=$(aws ec2 describe-key-pairs --query "KeyPairs[].KeyName" --region "$REGION" --output text)
 
 if [ -z "$keypairs" ]; then
   echo ""
@@ -45,7 +52,7 @@ done
 # Fetch existing security groups
 echo ""
 echo "🔒 Fetching existing security groups..."
-security_groups=$(aws ec2 describe-security-groups --query "SecurityGroups[].GroupName" --region eu-central-1 --output text)
+security_groups=$(aws ec2 describe-security-groups --query "SecurityGroups[].GroupName" --region "$REGION" --output text)
 
 if [ -z "$security_groups" ]; then
   echo ""
@@ -68,14 +75,12 @@ select security_group in $security_groups; do
   fi
 done
 
-# Set AMI ID (Ubuntu 20.04 LTS)
-ami_id="ami-03250b0e01c28d196"
 echo ""
-echo "🧠 Using AMI ID: $ami_id"
+echo "🧠 Using AMI ID: $AMI_ID"
 
-if [ -z "$ami_id" ]; then
+if [ -z "$AMI_ID" ]; then
   echo ""
-  echo "❌ No AMI ID found."
+  echo "❌ No AMI ID specified."
   exit 1
 fi
 
@@ -85,14 +90,14 @@ echo "🚀 Launching EC2 instance with the following settings:"
 echo "🔑 Key Pair:        $keypair"
 echo "💻 Instance Type:   $instance_type"
 echo "🔐 Security Group:  $security_group"
-echo "🖼️ AMI ID:          $ami_id"
+echo "🖼️ AMI ID:          $AMI_ID"
 
 instance_id=$(aws ec2 run-instances \
-  --image-id "$ami_id" \
+  --image-id "$AMI_ID" \
   --instance-type "$instance_type" \
   --key-name "$keypair" \
   --security-groups "$security_group" \
-  --region eu-central-1 \
+  --region "$REGION" \
   --query "Instances[0].InstanceId" \
   --output text)
 
@@ -105,23 +110,23 @@ fi
 echo "✅ EC2 instance launched! Instance ID: $instance_id"
 
 # Add a Name tag to the instance
-echo "🏷️ Tagging instance as 'GH-Actions-Demo'..."
+echo "🏷️ Tagging instance as '$TAG_NAME'..."
 aws ec2 create-tags --resources "$instance_id" \
-  --tags Key=Name,Value=GH-Actions-Demo \
-  --region eu-central-1
+  --tags Key=Name,Value="$TAG_NAME" \
+  --region "$REGION"
 
-echo "✅ Tag 🏷️ GH-Actions-Demo applied"
+echo "✅ Tag 🏷️ $TAG_NAME applied"
 
 # Wait for instance to reach "running" state
 echo "⏳ Waiting for instance to enter 'running' state..."
 aws ec2 wait instance-running \
   --instance-ids "$instance_id" \
-  --region eu-central-1
+  --region "$REGION"
 
 # Fetch the instance's public IP
 public_ip=$(aws ec2 describe-instances \
   --instance-ids "$instance_id" \
-  --region eu-central-1 \
+  --region "$REGION" \
   --query "Reservations[0].Instances[0].PublicIpAddress" \
   --output text)
 
@@ -130,4 +135,4 @@ echo "✅ Instance is now running! 🌍 Public IP: $public_ip"
 # Output SSH command
 echo ""
 echo "🔐 Use the following command to SSH into your instance:"
-echo "ssh -i /c/Users/getdz/Downloads/$keypair.pem ubuntu@$public_ip"
+echo "ssh -i $KEY_PATH/$keypair.pem ubuntu@$public_ip"

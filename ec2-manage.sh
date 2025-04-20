@@ -19,62 +19,62 @@ main_menu() {
     1) create_ec2_instance "default" ;;
     2) create_ec2_instance "custom" ;;
     3) manage_instances ;;
-    4) echo -e "\n👋 Exiting..."; exit 0 ;;
-    *) echo -e "\n❌ Invalid selection"; sleep 1; main_menu ;;
+    4) echo -e "\n 👋 Exiting..."; exit 0 ;;
+    *) echo -e "\n ❌ Invalid selection"; sleep 1; main_menu ;;
   esac
 }
 
 create_ec2_instance() {
   VPC_TYPE=$1
-  echo -e "\n🛠️ Launching EC2 in $VPC_TYPE VPC..."
+  echo -e "\n 🛠️ Launching EC2 in $VPC_TYPE VPC..."
   
   read -p "Enter the AMI ID (e.g., ami-03250b0e01c28d196): " AMI_ID
 
-  echo -e "\n🔑 Fetching EC2 Key Pairs..."
+  echo -e "\n 🔑 Fetching EC2 Key Pairs..."
   KEYS=( $(aws ec2 describe-key-pairs --query "KeyPairs[].KeyName" --output text) )
-  PS3=$'\nSelect a key pair: '
+  PS3=$'\n Select a key pair: '
   select KEY in "${KEYS[@]}"; do
-    [ -n "$KEY" ] && break || echo -e "\n❌ Invalid selection."
+    [ -n "$KEY" ] && break || echo -e "\n ❌ Invalid selection."
   done
 
-  echo -e "\n💻 Select the EC2 instance type:"
+  echo -e "\n 💻 Select the EC2 instance type:"
   TYPES=("t2.micro" "t2.small" "t2.medium" "t3.micro" "t3.small" "t3.medium")
-  PS3=$'\nChoose an instance type: '
+  PS3=$'\n Choose an instance type: '
   select TYPE in "${TYPES[@]}"; do
-    [ -n "$TYPE" ] && break || echo -e "\n❌ Invalid selection."
+    [ -n "$TYPE" ] && break || echo -e "\n ❌ Invalid selection."
   done
 
-  echo -e "\n🔒 Fetching security groups..."
+  echo -e "\n 🔒 Fetching security groups..."
   SG_IDS=( $(aws ec2 describe-security-groups --query "SecurityGroups[].GroupId" --output text) )
-  PS3=$'\nSelect a security group: '
+  PS3=$'\n Select a security group: '
   select SG in "${SG_IDS[@]}"; do
-    [ -n "$SG" ] && break || echo -e "\n❌ Invalid selection."
+    [ -n "$SG" ] && break || echo -e "\n ❌ Invalid selection."
   done
 
   if [ "$VPC_TYPE" = "custom" ]; then
-    echo -e "\n🌐 Select Subnet in Custom VPC:"
+    echo -e "\n 🌐 Select Subnet in Custom VPC:"
     SUBNETS=( $(aws ec2 describe-subnets --filters Name=default-for-az,Values=false --query "Subnets[].SubnetId" --output text) )
-    PS3=$'\nChoose a subnet: '
+    PS3=$'\n Choose a subnet: '
     select SUBNET in "${SUBNETS[@]}"; do
-      [ -n "$SUBNET" ] && break || echo -e "\n❌ Invalid selection."
+      [ -n "$SUBNET" ] && break || echo -e "\n ❌ Invalid selection."
     done
     SUBNET_OPTION="--subnet-id $SUBNET"
   else
     SUBNET_OPTION=""
   fi
 
-  echo -e "\n🚀 Launching EC2 instance..."
+  echo -e "\n 🚀 Launching EC2 instance..."
   INSTANCE_ID=$(aws ec2 run-instances --image-id "$AMI_ID" --count 1 --instance-type "$TYPE" --key-name "$KEY" \
                 --security-group-ids "$SG" $SUBNET_OPTION \
                 --query 'Instances[0].InstanceId' --output text)
-  echo -e "\n✅ Launched Instance: $INSTANCE_ID"
+  echo -e "\n ✅ Launched Instance: $INSTANCE_ID"
   aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
   PUBLIC_IP=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" --query "Reservations[].Instances[].PublicIpAddress" --output text)
   echo -e "🌐 Public IP: $PUBLIC_IP\n"
 }
 
 manage_instances() {
-  echo -e "\n🔍 Fetching EC2 instances..."
+  echo -e "\n 🔍 Fetching EC2 instances..."
   instances=$(aws ec2 describe-instances \
     --query "Reservations[].Instances[].[Tags[?Key=='Name']|[0].Value, InstanceId, State.Name]" \
     --output text)
@@ -86,7 +86,7 @@ manage_instances() {
   done <<< "$instances"
 
   if [ ${#instance_array[@]} -eq 0 ]; then
-    echo -e "\n❌ No instances found."
+    echo -e "\n ❌ No instances found."
     return
   fi
 
@@ -98,43 +98,43 @@ manage_instances() {
       INSTANCE_NAME=$(echo "$choice" | awk '{print $1}')
       INSTANCE_STATE=$(echo "$choice" | awk '{print $3}')
 
-      echo -e "\n✅ Selected: $INSTANCE_NAME ($INSTANCE_ID) [$INSTANCE_STATE]"
+      echo -e "\n ✅ Selected: $INSTANCE_NAME ($INSTANCE_ID) [$INSTANCE_STATE]"
 
-      echo -e "\nWhat action would you like to perform?"
-      PS3=$'\nChoose an action: '
+      echo -e "\n What action would you like to perform?"
+      PS3=$'\n Choose an action: '
       select ACTION in "Start" "Stop" "Reboot" "Hibernate" "Terminate" "Cancel"; do
         case $ACTION in
           Start)
             aws ec2 start-instances --instance-ids "$INSTANCE_ID"
-            echo -e "\n▶️ Instance starting..."
+            echo -e "\n ▶️ Instance starting..."
             break
             ;;
           Stop)
             aws ec2 stop-instances --instance-ids "$INSTANCE_ID"
-            echo -e "\n⏹️ Instance stopping..."
+            echo -e "\n ⏹️ Instance stopping..."
             break
             ;;
           Reboot)
             aws ec2 reboot-instances --instance-ids "$INSTANCE_ID"
-            echo -e "\n🔄 Instance rebooting..."
+            echo -e "\n 🔄 Instance rebooting..."
             break
             ;;
           Hibernate)
             aws ec2 stop-instances --instance-ids "$INSTANCE_ID" --hibernate
-            echo -e "\n💤 Instance hibernating..."
+            echo -e "\n 💤 Instance hibernating..."
             break
             ;;
           Terminate)
             aws ec2 terminate-instances --instance-ids "$INSTANCE_ID"
-            echo -e "\n🗑️ Instance terminating..."
+            echo -e "\n 🗑️ Instance terminating..."
             break
             ;;
           Cancel)
-            echo -e "\n🚫 Canceled."
+            echo -e "\n 🚫 Canceled."
             break
             ;;
           *)
-            echo -e "\n❌ Invalid option."
+            echo -e "\n ❌ Invalid option."
             ;;
         esac
       done
