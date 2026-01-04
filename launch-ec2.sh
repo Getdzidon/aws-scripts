@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#####--- See below for notes before running this script ---#####
+
 # ======================== CONFIGURABLE VARIABLES ========================
 REGION="eu-central-1"
 AMI_ID="ami-03250b0e01c28d196"  # Ubuntu 20.04 LTS
@@ -136,3 +138,53 @@ echo "✅ Instance is now running! 🌍 Public IP: $public_ip"
 echo ""
 echo "🔐 Use the following command to SSH into your instance:"
 echo "ssh -i $KEY_PATH/$keypair.pem ubuntu@$public_ip"
+
+
+
+####--- NOTES ---####
+
+# Note: Make sure AWS CLI is configured and user has permissions
+# https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+
+## Basic AWS CLI configuration
+## If you have the AWS CLI installed, run:
+#--- aws configure
+
+## You’ll be prompted for four things:
+#--- AWS Access Key ID:
+#--- AWS Secret Access Key:
+#--- Default region name:
+#--- Default output format:
+
+## Typical answers look like:
+#--- Access Key ID and Secret come from IAM
+#--- Region something like: eu-west-1 or us-east-1
+#--- Output format: usually json
+
+## That writes credentials to:
+#--- ~/.aws/credentials
+#--- ~/.aws/config
+
+## Using named profiles (recommended)
+# For multiple accounts or roles:
+#--- aws configure --profile dev
+
+## Then use it like:
+#--- aws s3 ls --profile dev
+
+## Or set it once per shell:
+#--- export AWS_PROFILE=dev
+
+## SSO configuration
+# If your org uses AWS SSO:
+#--- aws configure sso
+
+## You’ll be guided through login and account selection. After that:
+#---aws s3 ls --profile my-sso-profile
+
+## Quick sanity check
+#--- aws sts get-caller-identity
+
+## If that returns an ARN and account ID, you’re good.
+
+## Note: Your IAM account used for Access Key and ID mush have appropriate permissions for ec2:StartInstances, ec2:TerminateInstances, etc.

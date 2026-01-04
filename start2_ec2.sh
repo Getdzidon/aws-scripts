@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Note: Make sure AWS CLI is configured and user has permissions
-# Note: Have appropriate permissions for ec2:StartInstances, etc.
+#####--- See below for notes before running this script ---#####
 
 echo "🔍 Fetching EC2 instances..."
 
@@ -39,3 +38,52 @@ echo "⏳ Waiting for instance to enter 'running' state..."
 aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
 
 echo "✅ Instance $INSTANCE_ID is now running."
+
+
+####--- NOTES ---####
+
+# Note: Make sure AWS CLI is configured and user has permissions
+# https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+
+## Basic AWS CLI configuration
+## If you have the AWS CLI installed, run:
+#--- aws configure
+
+## You’ll be prompted for four things:
+#--- AWS Access Key ID:
+#--- AWS Secret Access Key:
+#--- Default region name:
+#--- Default output format:
+
+## Typical answers look like:
+#--- Access Key ID and Secret come from IAM
+#--- Region something like: eu-west-1 or us-east-1
+#--- Output format: usually json
+
+## That writes credentials to:
+#--- ~/.aws/credentials
+#--- ~/.aws/config
+
+## Using named profiles (recommended)
+# For multiple accounts or roles:
+#--- aws configure --profile dev
+
+## Then use it like:
+#--- aws s3 ls --profile dev
+
+## Or set it once per shell:
+#--- export AWS_PROFILE=dev
+
+## SSO configuration
+# If your org uses AWS SSO:
+#--- aws configure sso
+
+## You’ll be guided through login and account selection. After that:
+#---aws s3 ls --profile my-sso-profile
+
+## Quick sanity check
+#--- aws sts get-caller-identity
+
+## If that returns an ARN and account ID, you’re good.
+
+## Note: Your IAM account used for Access Key and ID mush have appropriate permissions for ec2:StartInstances, ec2:TerminateInstances, etc.
