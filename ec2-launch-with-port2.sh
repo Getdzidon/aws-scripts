@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# ======================== CONFIGURABLE VARIABLES ========================
+# ======================== CONFIGURABLE VARIABLES =========================
 REGION="eu-central-1"
 AMI_ID="ami-03250b0e01c28d196"  # Ubuntu 20.04 LTS
 TAG_NAME="Demo-EC2-Instance"
 KEY_PATH="/c/Users/getdz/Downloads"  # Path where your Keypair (.pem) files are stored
-# =======================================================================
+# ========================================================================
 
 # Ensure AWS CLI is configured and the user has necessary permissions for EC2 operations
 
