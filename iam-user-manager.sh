@@ -1,6 +1,7 @@
 #!/bin/bash
 
 #####--- IAM User Management Script ---#####
+#####---Important comments at the bottom of the script---#####
 
 # Colors
 RED='\033[0;31m'
@@ -46,6 +47,7 @@ create_user() {
   
   read -p "Enter username: " USERNAME
   
+  # Check if username is empty using -z flag
   if [ -z "$USERNAME" ]; then
     echo -e "\n${RED} ❌ Username cannot be empty.${NC}"
     sleep 2
@@ -56,6 +58,7 @@ create_user() {
   echo -e "\n${CYAN} 🚀 Creating user '${WHITE}$USERNAME${CYAN}'...${NC}"
   aws iam create-user --user-name "$USERNAME"
   
+  # Check exit status ($? = 0 means success)
   if [ $? -eq 0 ]; then
     echo -e "\n${GREEN} ✅ User '${WHITE}$USERNAME${GREEN}' created successfully!${NC}"
     
@@ -90,12 +93,14 @@ create_user() {
 list_users() {
   echo -e "\n${CYAN} 🔍 Fetching IAM users...${NC}\n"
   
+  # Query users with username, creation date, and ARN
   users=$(aws iam list-users --query 'Users[].[UserName,CreateDate,Arn]' --output text)
   
   if [ -z "$users" ]; then
     echo -e "\n${RED} ❌ No users found.${NC}\n"
   else
     echo -e "${GREEN}👥 IAM Users:${NC}\n"
+    # Use awk to format output with colors
     echo "$users" | awk -v cyan="$CYAN" -v white="$WHITE" -v nc="$NC" '{printf cyan"%-30s"nc" "white"%-25s %s"nc"\n", $1, $2, $3}'
     echo ""
   fi
@@ -104,22 +109,24 @@ list_users() {
   main_menu
 }
 
-# Select user from list
+# Select user from list (reusable helper function)
 select_user() {
   users=$(aws iam list-users --query 'Users[].UserName' --output text)
   
   if [ -z "$users" ]; then
     echo -e "\n${RED} ❌ No users found.${NC}\n"
-    return 1
+    return 1  # Return non-zero to indicate failure
   fi
   
+  # Convert space-separated string to array
   user_array=($users)
   PS3=$'\nSelect a user: '
+  # select creates numbered menu from array
   select USERNAME in "${user_array[@]}" "Cancel"; do
     if [ "$USERNAME" = "Cancel" ]; then
       return 1
     elif [ -n "$USERNAME" ]; then
-      return 0
+      return 0  # Return 0 to indicate success, USERNAME variable is set
     fi
   done
 }
@@ -150,6 +157,7 @@ attach_policy_to_user() {
         read -p "Enter policy ARN: " POLICY_ARN
         ;;
       *)
+        # Build full ARN for AWS managed policy
         POLICY_ARN="arn:aws:iam::aws:policy/$POLICY"
         ;;
     esac
@@ -171,6 +179,7 @@ attach_policy_to_user() {
 # Attach Policy (menu option)
 attach_policy() {
   echo -e "\n${CYAN} 🔍 Fetching IAM users...${NC}"
+  # || means "if select_user fails, execute the block"
   select_user || { main_menu; return; }
   
   attach_policy_to_user "$USERNAME"
@@ -187,7 +196,9 @@ create_access_key_for_user() {
   OUTPUT=$(aws iam create-access-key --user-name "$USER" --output json)
   
   if [ $? -eq 0 ]; then
+    # Extract AccessKeyId from JSON output using grep and cut
     ACCESS_KEY=$(echo "$OUTPUT" | grep -o '"AccessKeyId": "[^"]*' | cut -d'"' -f4)
+    # Extract SecretAccessKey from JSON output
     SECRET_KEY=$(echo "$OUTPUT" | grep -o '"SecretAccessKey": "[^"]*' | cut -d'"' -f4)
     
     echo -e "\n${GREEN} ✅ Access key created successfully!${NC}\n"
@@ -221,11 +232,13 @@ show_access_keys() {
   
   echo -e "\n${GREEN} 🔑 Access keys for user '${WHITE}$USERNAME${GREEN}':${NC}\n"
   
+  # List all access keys for the user with ID, status, and creation date
   keys=$(aws iam list-access-keys --user-name "$USERNAME" --query 'AccessKeyMetadata[].[AccessKeyId,Status,CreateDate]' --output text)
   
   if [ -z "$keys" ]; then
     echo -e "${RED} ❌ No access keys found for this user.${NC}\n"
   else
+    # Format output with colors using awk
     echo "$keys" | awk -v cyan="$CYAN" -v green="$GREEN" -v white="$WHITE" -v nc="$NC" '{printf cyan"%-25s "nc green"%-10s "nc white"%s"nc"\n", $1, $2, $3}'
     echo ""
   fi
@@ -245,27 +258,27 @@ delete_user() {
   if [[ "$confirm" == "y" ]]; then
     echo -e "\n${RED} 🗑️  Deleting user '${WHITE}$USERNAME${RED}'...${NC}"
     
-    # Delete access keys first
+    # Delete access keys first (required before deleting user)
     echo -e "${YELLOW}Removing access keys...${NC}"
     ACCESS_KEYS=$(aws iam list-access-keys --user-name "$USERNAME" --query 'AccessKeyMetadata[].AccessKeyId' --output text)
     for KEY in $ACCESS_KEYS; do
       aws iam delete-access-key --user-name "$USERNAME" --access-key-id "$KEY"
     done
     
-    # Detach managed policies
+    # Detach managed policies (required before deleting user)
     echo -e "${YELLOW}Detaching policies...${NC}"
     POLICIES=$(aws iam list-attached-user-policies --user-name "$USERNAME" --query 'AttachedPolicies[].PolicyArn' --output text)
     for POLICY in $POLICIES; do
       aws iam detach-user-policy --user-name "$USERNAME" --policy-arn "$POLICY"
     done
     
-    # Delete inline policies
+    # Delete inline policies (required before deleting user)
     INLINE_POLICIES=$(aws iam list-user-policies --user-name "$USERNAME" --query 'PolicyNames[]' --output text)
     for POLICY in $INLINE_POLICIES; do
       aws iam delete-user-policy --user-name "$USERNAME" --policy-name "$POLICY"
     done
     
-    # Delete user
+    # Delete user after cleanup
     aws iam delete-user --user-name "$USERNAME"
     
     if [ $? -eq 0 ]; then

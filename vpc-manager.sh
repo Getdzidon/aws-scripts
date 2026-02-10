@@ -1,6 +1,7 @@
 #!/bin/bash
 
 #####--- VPC Management Script ---#####
+#####---Important comments at the bottom of the script---#####
 
 # Colors
 RED='\033[0;31m'
@@ -653,3 +654,39 @@ main_menu
 # Subnet Planning:
 # - Public subnets: 10.0.1.0/24, 10.0.2.0/24
 # - Private subnets: 10.0.10.0/24, 10.0.11.0/24
+
+
+####--- NOTES ---####
+
+# Prerequisites:
+# - AWS CLI installed and configured
+# - IAM permissions for VPC operations
+
+# Required IAM Permissions:
+# - ec2:CreateVpc, ec2:DeleteVpc, ec2:DescribeVpcs
+# - ec2:CreateSubnet, ec2:DeleteSubnet, ec2:DescribeSubnets
+# - ec2:CreateInternetGateway, ec2:AttachInternetGateway, ec2:DetachInternetGateway
+# - ec2:CreateRouteTable, ec2:CreateRoute, ec2:AssociateRouteTable
+# - ec2:CreateSecurityGroup, ec2:AuthorizeSecurityGroupIngress, ec2:AuthorizeSecurityGroupEgress
+# - ec2:RevokeSecurityGroupIngress, ec2:RevokeSecurityGroupEgress
+# - ec2:CreateTags, ec2:ModifyVpcAttribute
+
+# Common CIDR Blocks:
+# - 10.0.0.0/16 (65,536 IPs)
+# - 172.16.0.0/16 (65,536 IPs)
+# - 192.168.0.0/16 (65,536 IPs)
+
+# Subnet Planning:
+# - Public subnets: 10.0.1.0/24, 10.0.2.0/24
+# - Private subnets: 10.0.10.0/24, 10.0.11.0/24
+
+# Network Modes:
+# - awsvpc: Each task gets its own ENI (required for Fargate)
+# - bridge: Tasks share host's network stack
+# - host: Tasks use host's network directly
+
+# Security Group Rules:
+# - Inbound: Controls incoming traffic to resources
+# - Outbound: Controls outgoing traffic from resources
+# - Protocol: tcp, udp, icmp, or -1 (all)
+# - Port range: Single port or range (e.g., 80 or 1024-65535)

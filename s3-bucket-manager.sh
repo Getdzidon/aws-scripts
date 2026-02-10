@@ -1,6 +1,7 @@
 #!/bin/bash
 
-#####--- See below for notes before running this script ---#####
+#####--- s3 Bucket Management Script ---#####
+#####---Important comments at the bottom of the script---#####
 
 # Colors
 RED='\033[0;31m'
@@ -57,12 +58,15 @@ main_menu() {
 
 list_buckets() {
   echo -e "\n${CYAN} 🔍 Fetching S3 buckets...${NC}"
+  # Query all buckets with name and creation date
   buckets=$(aws s3api list-buckets --query "Buckets[].[Name,CreationDate]" --output text)
 
+  # Check if buckets variable is empty using -z flag
   if [ -z "$buckets" ]; then
     echo -e "\n${RED} ❌ No buckets found.${NC}\n"
   else
     echo -e "\n${GREEN}📦 Available S3 Buckets:${NC}\n"
+    # Use awk to format output with colors
     echo "$buckets" | awk -v cyan="$CYAN" -v white="$WHITE" -v nc="$NC" '{printf cyan"%-40s "nc white"%s"nc"\n", $1, $2}'
     echo ""
   fi
@@ -118,18 +122,22 @@ create_bucket() {
 
   echo -e "\n${CYAN} 🚀 Creating bucket '${WHITE}$BUCKET_NAME${CYAN}' in region $REGION...${NC}"
   
+  # us-east-1 doesn't require LocationConstraint parameter
   if [ "$REGION" = "us-east-1" ]; then
     aws s3api create-bucket --bucket "$BUCKET_NAME" --region "$REGION" --acl "$ACL_CHOICE"
   else
+    # Other regions require LocationConstraint in bucket configuration
     aws s3api create-bucket --bucket "$BUCKET_NAME" --region "$REGION" \
       --create-bucket-configuration LocationConstraint="$REGION" --acl "$ACL_CHOICE"
   fi
 
+  # Check exit status ($? = 0 means success)
   if [ $? -eq 0 ]; then
     echo -e "\n${GREEN} ✅ Bucket '${WHITE}$BUCKET_NAME${GREEN}' created successfully!${NC}"
     
     if [ "$BLOCK_PUBLIC" = "false" ]; then
       echo -e "\n${YELLOW} 🔓 Disabling public access block...${NC}"
+      # 2>/dev/null suppresses error messages
       aws s3api delete-public-access-block --bucket "$BUCKET_NAME" 2>/dev/null
       echo -e "\n${GREEN} ✅ Public access block disabled!${NC}\n"
     else
@@ -154,11 +162,14 @@ delete_bucket() {
     return
   fi
 
+  # Convert space-separated string to array
   bucket_array=($buckets)
   
   echo -e "\n${GREEN}📦 Available S3 Buckets:${NC}\n"
+  # PS3 sets the prompt for select menu
   PS3=$'\nSelect a bucket to delete: '
   
+  # select creates numbered menu from array
   select BUCKET in "${bucket_array[@]}" "Cancel"; do
     if [ "$BUCKET" = "Cancel" ]; then
       echo -e "\n${YELLOW} 🚫 Canceled.${NC}\n"
@@ -170,6 +181,7 @@ delete_bucket() {
 
       if [[ "$confirm" == "y" ]]; then
         echo -e "\n${RED} 🗑️ Deleting bucket '${WHITE}$BUCKET${RED}'...${NC}"
+        # rb = remove bucket, --force deletes all objects inside first
         aws s3 rb s3://"$BUCKET" --force
 
         if [ $? -eq 0 ]; then
@@ -190,28 +202,32 @@ delete_bucket() {
   done
 }
 
+# Reusable helper function to select a bucket from list
 select_bucket() {
   buckets=$(aws s3api list-buckets --query "Buckets[].Name" --output text)
   if [ -z "$buckets" ]; then
     echo -e "\n${RED} ❌ No buckets found.${NC}\n"
-    return 1
+    return 1  # Return non-zero to indicate failure
   fi
+  # Convert space-separated string to array
   bucket_array=($buckets)
   PS3=$'\nSelect a bucket: '
   select BUCKET in "${bucket_array[@]}" "Cancel"; do
     if [ "$BUCKET" = "Cancel" ]; then
       return 1
     elif [ -n "$BUCKET" ]; then
-      return 0
+      return 0  # Return 0 to indicate success, BUCKET variable is set
     fi
   done
 }
 
 list_bucket_contents() {
   echo -e "\n${CYAN} 🔍 Fetching S3 buckets...${NC}"
+  # || means "if select_bucket fails, execute the block"
   select_bucket || { main_menu; return; }
   
   echo -e "\n${GREEN} 📂 Contents of bucket '${WHITE}$BUCKET${GREEN}':${NC}\n"
+  # --recursive lists all objects, --human-readable shows sizes in KB/MB, --summarize shows totals
   aws s3 ls s3://"$BUCKET" --recursive --human-readable --summarize
   echo ""
   
@@ -225,6 +241,7 @@ upload_file() {
   
   read -p "Enter local file path to upload: " FILE_PATH
   
+  # -f checks if file exists and is a regular file
   if [ ! -f "$FILE_PATH" ]; then
     echo -e "\n${RED} ❌ File not found.${NC}\n"
     read -p "Press Enter to return to main menu..."
@@ -250,6 +267,7 @@ download_file() {
   select_bucket || { main_menu; return; }
   
   echo -e "\n${GREEN} 📂 Files in bucket '${WHITE}$BUCKET${GREEN}':${NC}\n"
+  # awk extracts 4th column (filename) from s3 ls output
   files=$(aws s3 ls s3://"$BUCKET" --recursive | awk '{print $4}')
   
   if [ -z "$files" ]; then
@@ -283,6 +301,7 @@ bucket_info() {
   
   echo -e "\n${GREEN} 📊 Bucket Info for '${WHITE}$BUCKET${GREEN}':${NC}\n"
   echo -e "${YELLOW}Calculating size and object count...${NC}"
+  # tail -2 shows last 2 lines which contain total objects and total size
   aws s3 ls s3://"$BUCKET" --recursive --summarize | tail -2
   echo ""
   
@@ -299,6 +318,7 @@ empty_bucket() {
   
   if [[ "$confirm" == "y" ]]; then
     echo -e "\n${RED} 🗑️ Emptying bucket '${WHITE}$BUCKET${RED}'...${NC}"
+    # rm with --recursive deletes all objects but keeps the bucket
     aws s3 rm s3://"$BUCKET" --recursive
     
     if [ $? -eq 0 ]; then
@@ -319,12 +339,14 @@ enable_website_hosting() {
   select_bucket || { main_menu; return; }
   
   read -p "Enter index document (default: index.html): " INDEX_DOC
+  # ${VAR:-default} uses default value if VAR is empty or unset
   INDEX_DOC=${INDEX_DOC:-index.html}
   
   read -p "Enter error document (default: 404.html): " ERROR_DOC
   ERROR_DOC=${ERROR_DOC:-404.html}
   
   echo -e "\n${CYAN} 🌐 Enabling static website hosting...${NC}"
+  # Configure bucket for static website hosting
   aws s3 website s3://"$BUCKET"/ --index-document "$INDEX_DOC" --error-document "$ERROR_DOC"
   
   if [ $? -eq 0 ]; then
@@ -375,6 +397,7 @@ add_tags() {
   read -p "Enter tag key: " TAG_KEY
   read -p "Enter tag value: " TAG_VALUE
   
+  # || means OR - checks if either variable is empty
   if [ -z "$TAG_KEY" ] || [ -z "$TAG_VALUE" ]; then
     echo -e "\n${RED} ❌ Tag key and value cannot be empty.${NC}\n"
     read -p "Press Enter to return to main menu..."
@@ -403,10 +426,12 @@ set_bucket_policy() {
   read -p "Are you sure? (y/n): " confirm
   
   if [[ "$confirm" == "y" ]]; then
+    # JSON policy allowing public read access to all objects in bucket
     POLICY='{"Version":"2012-10-17","Statement":[{"Sid":"PublicReadGetObject","Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::'$BUCKET'/*"}]}'
     
     echo -e "\n${CYAN} 🔐 Setting bucket policy...${NC}"
     aws s3api put-bucket-policy --bucket "$BUCKET" --policy "$POLICY"
+    # Remove public access block to allow policy to work (2>/dev/null suppresses errors)
     aws s3api delete-public-access-block --bucket "$BUCKET" 2>/dev/null
     
     if [ $? -eq 0 ]; then
@@ -423,3 +448,43 @@ set_bucket_policy() {
 }
 
 main_menu
+
+
+####--- NOTES ---####
+
+# Prerequisites:
+# - AWS CLI installed and configured
+# - IAM permissions for S3 operations
+
+# Required IAM Permissions:
+# - s3:CreateBucket, s3:DeleteBucket
+# - s3:ListBucket, s3:ListAllMyBuckets
+# - s3:PutObject, s3:GetObject, s3:DeleteObject
+# - s3:PutBucketPolicy, s3:PutBucketTagging
+# - s3:PutBucketVersioning, s3:PutBucketWebsite
+# - s3:PutPublicAccessBlock, s3:DeletePublicAccessBlock
+
+# S3 Bucket Naming Rules:
+# - Must be 3-63 characters long
+# - Can contain lowercase letters, numbers, hyphens
+# - Must start and end with a letter or number
+# - Must be globally unique across all AWS accounts
+
+# ACL Options:
+# - private: Owner gets full control, no one else has access
+# - public-read: Owner gets full control, everyone can read
+# - public-read-write: Owner gets full control, everyone can read/write
+# - authenticated-read: Owner gets full control, authenticated AWS users can read
+
+# Public Access Block:
+# - Recommended to keep enabled for security
+# - Blocks all public access to bucket and objects
+# - Can be disabled for public websites or CDN origins
+
+# Bash Syntax Notes:
+# - ${VAR:-default} uses default value if VAR is empty or unset
+# - [ -z "$var" ] checks if variable is empty
+# - [ -f "$file" ] checks if file exists and is a regular file
+# - $? contains exit status of last command (0 = success)
+# - || means "if previous command fails, execute next command"
+# - 2>/dev/null suppresses error messages

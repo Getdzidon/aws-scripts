@@ -1,6 +1,7 @@
 #!/bin/bash
 
 #####--- EC2 Complete Management Script ---#####
+#####---Important comments at the bottom of the script---#####
 
 # Colors
 RED='\033[0;31m'
@@ -52,7 +53,7 @@ main_menu() {
   echo -e "${GREEN}12)${NC} Bulk Operations"
   echo -e "${GREEN}13)${NC} Filter/Search Instances"
   echo -e "${GREEN}14)${NC} List All Instances"
-  echo -e "${GREEN}15)${NC} Change Region (Current: ${GREEN}$REGION${GREEN})${NC}"
+  echo -e "${GREEN}15)${NC} Change Region (Current: ${WHITE}$REGION${GREEN})${NC}"
   echo -e "${GREEN}16)${NC} Exit"
   echo -e "${CYAN}==========================================${NC}"
 
@@ -84,14 +85,16 @@ launch_ec2() {
   echo -e "\n 🚀 Launching EC2 in $VPC_TYPE VPC..."
   
   read -p "Enter AMI ID (default: $DEFAULT_AMI): " AMI_ID
-  AMI_ID=${AMI_ID:-$DEFAULT_AMI}
+  AMI_ID=${AMI_ID:-$DEFAULT_AMI}   # ${VAR:-default} uses default value if VAR is empty or unset
   
   read -p "Enter instance name tag: " TAG_NAME
   TAG_NAME=${TAG_NAME:-Demo-EC2-Instance}
   
   echo -e "\n 🔑 Fetching Key Pairs..."
+  # Query AWS for available key pairs and store in array
   KEYS=( $(aws ec2 describe-key-pairs --region "$REGION" --query "KeyPairs[].KeyName" --output text) )
   PS3=$'\nSelect a key pair: '
+  # [ -n "$KEY" ] checks if KEY is not empty
   select KEY in "${KEYS[@]}"; do
     [ -n "$KEY" ] && break || echo -e "\n ❌ Invalid selection."
   done
@@ -127,10 +130,13 @@ launch_ec2() {
                 --security-group-ids "$SG" $SUBNET_OPTION \
                 --query 'Instances[0].InstanceId' --output text)
   
+  # Check exit status ($? = 0 means success)
   if [ $? -eq 0 ]; then
+    # Tag the instance with a name
     aws ec2 create-tags --region "$REGION" --resources "$INSTANCE_ID" --tags Key=Name,Value="$TAG_NAME"
     echo -e "\n ✅ Instance launched: $INSTANCE_ID"
     echo -e "⏳ Waiting for instance to run..."
+    # Wait until instance is in running state
     aws ec2 wait instance-running --region "$REGION" --instance-ids "$INSTANCE_ID"
     PUBLIC_IP=$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" --query "Reservations[].Instances[].PublicIpAddress" --output text)
     echo -e "🌐 Public IP: $PUBLIC_IP"
@@ -168,9 +174,11 @@ launch_with_port() {
   done
   
   echo -e "\n 🔒 Fetching Security Groups..."
+  # Query security groups with both ID and name
   SG_DATA=$(aws ec2 describe-security-groups --region "$REGION" --query "SecurityGroups[].[GroupId,GroupName]" --output text)
   
   sg_array=()
+  # Read tab-separated values and build array with formatted strings
   while IFS=$'\t' read -r id name; do
     sg_array+=("$id ($name)")
   done <<< "$SG_DATA"
@@ -178,6 +186,7 @@ launch_with_port() {
   PS3=$'\nSelect a security group: '
   select SG_CHOICE in "${sg_array[@]}"; do
     if [ -n "$SG_CHOICE" ]; then
+      # Extract just the ID from the formatted string
       SG_ID=$(echo "$SG_CHOICE" | awk '{print $1}')
       break
     fi
@@ -192,6 +201,7 @@ launch_with_port() {
       CUSTOM_CIDR=${CUSTOM_CIDR:-0.0.0.0/0}
       
       echo -e "\n 🔐 Adding ingress rule..."
+      # 2>/dev/null suppresses error messages if rule already exists
       aws ec2 authorize-security-group-ingress --region "$REGION" --group-id "$SG_ID" --protocol tcp --port "$CUSTOM_PORT" --cidr "$CUSTOM_CIDR" 2>/dev/null
       
       if [ $? -eq 0 ]; then
@@ -553,6 +563,7 @@ manage_elastic_ips() {
     case $ACTION in
       "Allocate New EIP")
         echo -e "\n 🚀 Allocating Elastic IP..."
+        # Allocate new Elastic IP in VPC domain
         EIP=$(aws ec2 allocate-address --region "$REGION" --domain vpc --query 'PublicIp' --output text)
         echo -e "\n ✅ Allocated EIP: $EIP\n"
         ;;
@@ -570,11 +581,13 @@ manage_elastic_ips() {
         
         PS3=$'\nSelect instance: '
         select inst in "${instance_array[@]}"; do
+          # Extract instance ID using grep with Perl regex
           INSTANCE_ID=$(echo "$inst" | grep -oP 'i-[a-z0-9]+')
           break
         done
         
         read -p "Enter Elastic IP to associate: " EIP
+        # Get allocation ID from the Elastic IP
         ALLOC_ID=$(aws ec2 describe-addresses --region "$REGION" --filters "Name=public-ip,Values=$EIP" --query 'Addresses[].AllocationId' --output text)
         
         aws ec2 associate-address --region "$REGION" --instance-id "$INSTANCE_ID" --allocation-id "$ALLOC_ID"
@@ -582,6 +595,7 @@ manage_elastic_ips() {
         ;;
       "Disassociate EIP")
         read -p "Enter Elastic IP to disassociate: " EIP
+        # Get association ID to disassociate
         ASSOC_ID=$(aws ec2 describe-addresses --region "$REGION" --filters "Name=public-ip,Values=$EIP" --query 'Addresses[].AssociationId' --output text)
         
         aws ec2 disassociate-address --region "$REGION" --association-id "$ASSOC_ID"
@@ -624,6 +638,7 @@ monitor_instance() {
   fi
   
   instance_array=()
+  # Parse tab-separated instance data
   while IFS=$'\t' read -r name id; do
     instance_array+=("$name ($id)")
   done <<< "$instances"
@@ -631,6 +646,7 @@ monitor_instance() {
   PS3=$'\nSelect an instance: '
   select choice in "${instance_array[@]}"; do
     if [ -n "$choice" ]; then
+      # Extract instance ID using grep with Perl regex
       INSTANCE_ID=$(echo "$choice" | grep -oP 'i-[a-z0-9]+')
       
       echo -e "\n 📊 Monitoring Options:"
@@ -639,14 +655,17 @@ monitor_instance() {
         case $MON in
           "System Status")
             echo -e "\n 🖥️  System Status:\n"
+            # Show full system status check results
             aws ec2 describe-instance-status --region "$REGION" --instance-ids "$INSTANCE_ID" --output table
             ;;
           "Instance Status")
             echo -e "\n 📈 Instance Status:\n"
+            # Show instance state and status checks
             aws ec2 describe-instance-status --region "$REGION" --instance-ids "$INSTANCE_ID" --query 'InstanceStatuses[].[InstanceState.Name,SystemStatus.Status,InstanceStatus.Status]' --output table
             ;;
           "Console Output")
             echo -e "\n 📝 Console Output (last 64KB):\n"
+            # Get console output and show last 50 lines
             aws ec2 get-console-output --region "$REGION" --instance-id "$INSTANCE_ID" --query 'Output' --output text | tail -50
             ;;
           "Cancel")
@@ -676,9 +695,11 @@ bulk_operations() {
   fi
   
   echo -e "\n 🖥️  Available Instances:\n"
+  # Format output with awk for better readability
   echo "$instances" | awk '{printf "%-25s %-20s %-10s\n", $1, $2, $3}'
   echo ""
   
+  # User enters space-separated instance IDs
   read -p "Enter instance IDs (space-separated): " INSTANCE_IDS
   
   echo -e "\n 📋 Bulk Action:"
@@ -688,6 +709,7 @@ bulk_operations() {
       "Start All")
         read -p "⚠️  Start all selected instances? (y/n): " confirm
         if [[ "$confirm" == "y" ]]; then
+          # Start multiple instances at once
           aws ec2 start-instances --region "$REGION" --instance-ids $INSTANCE_IDS
           echo -e "\n ✅ Starting instances...\n"
         fi
@@ -731,6 +753,7 @@ filter_instances() {
       "Name")
         read -p "Enter name to search: " SEARCH_NAME
         echo -e "\n 🖥️  Matching Instances:\n"
+        # Use wildcard pattern matching for name tag
         aws ec2 describe-instances --region "$REGION" \
           --filters "Name=tag:Name,Values=*$SEARCH_NAME*" \
           --query "Reservations[].Instances[].[Tags[?Key=='Name']|[0].Value, InstanceId, State.Name, InstanceType]" \
@@ -741,6 +764,7 @@ filter_instances() {
         PS3=$'\nChoose: '
         select STATE in "running" "stopped" "terminated" "pending"; do
           echo -e "\n 🖥️  Instances in $STATE state:\n"
+          # Filter by instance state
           aws ec2 describe-instances --region "$REGION" \
             --filters "Name=instance-state-name,Values=$STATE" \
             --query "Reservations[].Instances[].[Tags[?Key=='Name']|[0].Value, InstanceId, InstanceType]" \
@@ -751,6 +775,7 @@ filter_instances() {
       "Instance Type")
         read -p "Enter instance type (e.g., t2.micro): " INST_TYPE
         echo -e "\n 🖥️  Instances of type $INST_TYPE:\n"
+        # Filter by instance type
         aws ec2 describe-instances --region "$REGION" \
           --filters "Name=instance-type,Values=$INST_TYPE" \
           --query "Reservations[].Instances[].[Tags[?Key=='Name']|[0].Value, InstanceId, State.Name]" \
@@ -793,20 +818,53 @@ main_menu
 # Prerequisites:
 # - AWS CLI installed and configured
 # - IAM permissions for EC2 operations
+# - Key pair (.pem file) for SSH access
 
 # Required IAM Permissions:
 # - ec2:RunInstances, ec2:DescribeInstances
-# - ec2:StartInstances, ec2:StopInstances
-# - ec2:RebootInstances, ec2:TerminateInstances
+# - ec2:StartInstances, ec2:StopInstances, ec2:RebootInstances
+# - ec2:TerminateInstances, ec2:ModifyInstanceAttribute
+# - ec2:CreateImage, ec2:DescribeImages
+# - ec2:AllocateAddress, ec2:AssociateAddress, ec2:ReleaseAddress
 # - ec2:DescribeKeyPairs, ec2:DescribeSecurityGroups
 # - ec2:DescribeSubnets, ec2:CreateTags
 # - ec2:AuthorizeSecurityGroupIngress
-# - ec2:CreateImage, ec2:ModifyInstanceAttribute
-# - ec2:AllocateAddress, ec2:AssociateAddress
-# - ec2:DisassociateAddress, ec2:ReleaseAddress
 # - ec2:DescribeInstanceStatus, ec2:GetConsoleOutput
 
 # Configuration:
-# - Update DEFAULT_AMI for your preferred AMI
-# - Update KEY_PATH to your .pem file location
-# - DEFAULT_REGION is eu-central-1 but can be changed dynamically
+# - DEFAULT_REGION: eu-central-1 (can be changed dynamically)
+# - DEFAULT_AMI: ami-03250b0e01c28d196 (Ubuntu in eu-central-1)
+# - KEY_PATH: /c/Users/getdz/Downloads (location of .pem files)
+
+# Instance Types:
+# - t2.micro: 1 vCPU, 1 GB RAM (Free tier eligible)
+# - t2.small: 1 vCPU, 2 GB RAM
+# - t2.medium: 2 vCPU, 4 GB RAM
+# - t3.micro: 2 vCPU, 1 GB RAM (Newer generation)
+# - t3.small: 2 vCPU, 2 GB RAM
+# - t3.medium: 2 vCPU, 4 GB RAM
+
+# Instance States:
+# - pending: Instance is launching
+# - running: Instance is running
+# - stopping: Instance is stopping
+# - stopped: Instance is stopped
+# - shutting-down: Instance is terminating
+# - terminated: Instance is terminated
+
+# Elastic IP:
+# - Static public IPv4 address
+# - Can be associated/disassociated from instances
+# - Charged when not associated with a running instance
+
+# User Data:
+# - Script that runs on instance launch
+# - Useful for automated setup and configuration
+# - Must start with #!/bin/bash for bash scripts
+
+# Bash Syntax Notes:
+# - ${VAR:-default} uses default value if VAR is empty
+# - [ -n "$var" ] checks if variable is not empty
+# - $? contains exit status of last command (0 = success)
+# - || means "if previous command fails, execute next"
+# - 2>/dev/null suppresses error messages
