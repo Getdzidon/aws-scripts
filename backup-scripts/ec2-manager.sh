@@ -2,23 +2,13 @@
 
 #####--- EC2 Complete Management Script ---#####
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-NC='\033[0m'
-
 DEFAULT_REGION="eu-central-1"
 DEFAULT_AMI="ami-03250b0e01c28d196"
 KEY_PATH="/c/Users/getdz/Downloads"
 REGION="$DEFAULT_REGION"
 
 select_region() {
-  echo -e "\n${CYAN} 🌍 Select AWS Region:${NC}"
+  echo -e "\n 🌍 Select AWS Region:"
   PS3=$'\nChoose region (default: eu-central-1): '
   select REGION in "eu-central-1 (Frankfurt)" "us-east-1 (N. Virginia)" "us-west-2 (Oregon)" "ap-southeast-1 (Singapore)" "Use default" "Custom"; do
     case $REGION in
@@ -30,31 +20,31 @@ select_region() {
       "Custom") read -p "Enter region code: " REGION; break ;;
     esac
   done
-  echo -e "${GREEN}✅ Using region: ${WHITE}$REGION${NC}"
+  echo -e "✅ Using region: $REGION"
 }
 
 main_menu() {
   clear
-  echo -e "${CYAN}==========================================${NC}"
-  echo -e "${WHITE}🖥️  EC2 Complete Management${NC}"
-  echo -e "${CYAN}==========================================${NC}"
-  echo -e "${GREEN}1)${NC} Launch EC2 (Default VPC)"
-  echo -e "${GREEN}2)${NC} Launch EC2 (Custom VPC)"
-  echo -e "${GREEN}3)${NC} Launch EC2 with Custom Port"
-  echo -e "${GREEN}4)${NC} Launch EC2 with User Data"
-  echo -e "${GREEN}5)${NC} Manage Existing Instances"
-  echo -e "${GREEN}6)${NC} Get Instance Details"
-  echo -e "${GREEN}7)${NC} Connect to Instance (SSH)"
-  echo -e "${GREEN}8)${NC} Create AMI from Instance"
-  echo -e "${GREEN}9)${NC} Modify Instance Type"
-  echo -e "${GREEN}10)${NC} Manage Elastic IPs"
-  echo -e "${GREEN}11)${NC} Monitor Instance"
-  echo -e "${GREEN}12)${NC} Bulk Operations"
-  echo -e "${GREEN}13)${NC} Filter/Search Instances"
-  echo -e "${GREEN}14)${NC} List All Instances"
-  echo -e "${GREEN}15)${NC} Change Region (Current: ${GREEN}$REGION${GREEN})${NC}"
-  echo -e "${GREEN}16)${NC} Exit"
-  echo -e "${CYAN}==========================================${NC}"
+  echo "=========================================="
+  echo "🖥️  EC2 Complete Management"
+  echo "=========================================="
+  echo "1) Launch EC2 (Default VPC)"
+  echo "2) Launch EC2 (Custom VPC)"
+  echo "3) Launch EC2 with Custom Port"
+  echo "4) Launch EC2 with User Data"
+  echo "5) Manage Existing Instances"
+  echo "6) Get Instance Details"
+  echo "7) Connect to Instance (SSH)"
+  echo "8) Create AMI from Instance"
+  echo "9) Modify Instance Type"
+  echo "10) Manage Elastic IPs"
+  echo "11) Monitor Instance"
+  echo "12) Bulk Operations"
+  echo "13) Filter/Search Instances"
+  echo "14) List All Instances"
+  echo "15) Change Region (Current: $REGION)"
+  echo "16) Exit"
+  echo "=========================================="
 
   read -p "Choose an option: " choice
 
@@ -74,8 +64,8 @@ main_menu() {
     13) filter_instances ;;
     14) list_instances ;;
     15) select_region; main_menu ;;
-    16) echo -e "\n${YELLOW} 👋 Exiting...${NC}"; exit 0 ;;
-    *) echo -e "\n${RED} ❌ Invalid selection${NC}"; sleep 1; main_menu ;;
+    16) echo -e "\n 👋 Exiting..."; exit 0 ;;
+    *) echo -e "\n ❌ Invalid selection"; sleep 1; main_menu ;;
   esac
 }
 
@@ -255,8 +245,8 @@ launch_with_userdata() {
   
   echo -e "\n 📝 Enter User Data Script:"
   echo "Example: #!/bin/bash"
-  echo "         sudo apt update -y && sudo apt upgrade -y"
-  echo "         sudo apt install nginx -y"
+  echo "         yum update -y"
+  echo "         yum install -y httpd"
   echo ""
   read -p "Enter user data file path (or press Enter to skip): " USERDATA_FILE
   

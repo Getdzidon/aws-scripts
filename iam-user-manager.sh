@@ -2,18 +2,29 @@
 
 #####--- IAM User Management Script ---#####
 
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
 main_menu() {
   clear
-  echo "======================================"
-  echo "👤 IAM User Management"
-  echo "======================================"
-  echo "1) Create IAM User"
-  echo "2) List IAM Users"
-  echo "3) Attach Policy to User"
-  echo "4) Create Access Key for User"
-  echo "5) Delete IAM User"
-  echo "6) Exit"
-  echo "======================================"
+  echo -e "${CYAN}======================================${NC}"
+  echo -e "${WHITE}👤 IAM User Management${NC}"
+  echo -e "${CYAN}======================================${NC}"
+  echo -e "${GREEN}1)${NC} Create IAM User"
+  echo -e "${GREEN}2)${NC} List IAM Users"
+  echo -e "${GREEN}3)${NC} Attach Policy to User"
+  echo -e "${GREEN}4)${NC} Create Access Key for User"
+  echo -e "${GREEN}5)${NC} Show Access Keys for User"
+  echo -e "${GREEN}6)${NC} Delete IAM User"
+  echo -e "${GREEN}7)${NC} Exit"
+  echo -e "${CYAN}======================================${NC}"
 
   read -p "Choose an option: " choice
 
@@ -22,33 +33,34 @@ main_menu() {
     2) list_users ;;
     3) attach_policy ;;
     4) create_access_key ;;
-    5) delete_user ;;
-    6) echo -e "\n 👋 Exiting..."; exit 0 ;;
-    *) echo -e "\n ❌ Invalid selection"; sleep 1; main_menu ;;
+    5) show_access_keys ;;
+    6) delete_user ;;
+    7) echo -e "\n${YELLOW} 👋 Exiting...${NC}"; exit 0 ;;
+    *) echo -e "\n${RED} ❌ Invalid selection${NC}"; sleep 1; main_menu ;;
   esac
 }
 
 # Create IAM User
 create_user() {
-  echo -e "\n 👤 Creating IAM User..."
+  echo -e "\n${BLUE} 👤 Creating IAM User...${NC}"
   
   read -p "Enter username: " USERNAME
   
   if [ -z "$USERNAME" ]; then
-    echo -e "\n ❌ Username cannot be empty."
+    echo -e "\n${RED} ❌ Username cannot be empty.${NC}"
     sleep 2
     main_menu
     return
   fi
   
-  echo -e "\n 🚀 Creating user '$USERNAME'..."
+  echo -e "\n${CYAN} 🚀 Creating user '${WHITE}$USERNAME${CYAN}'...${NC}"
   aws iam create-user --user-name "$USERNAME"
   
   if [ $? -eq 0 ]; then
-    echo -e "\n ✅ User '$USERNAME' created successfully!"
+    echo -e "\n${GREEN} ✅ User '${WHITE}$USERNAME${GREEN}' created successfully!${NC}"
     
     # Ask if user wants to attach policies
-    echo -e "\n 🔒 Attach policies now?"
+    echo -e "\n${YELLOW} 🔒 Attach policies now?${NC}"
     PS3=$'\nChoose: '
     select ATTACH in "Yes" "No"; do
       if [ "$ATTACH" = "Yes" ]; then
@@ -58,7 +70,7 @@ create_user() {
     done
     
     # Ask if user wants to create access key
-    echo -e "\n 🔑 Create access key now?"
+    echo -e "\n${YELLOW} 🔑 Create access key now?${NC}"
     PS3=$'\nChoose: '
     select CREATE_KEY in "Yes" "No"; do
       if [ "$CREATE_KEY" = "Yes" ]; then
@@ -67,7 +79,7 @@ create_user() {
       break
     done
   else
-    echo -e "\n ❌ Failed to create user.\n"
+    echo -e "\n${RED} ❌ Failed to create user.${NC}\n"
   fi
   
   read -p "Press Enter to return to main menu..."
@@ -76,15 +88,15 @@ create_user() {
 
 # List IAM Users
 list_users() {
-  echo -e "\n 🔍 Fetching IAM users...\n"
+  echo -e "\n${CYAN} 🔍 Fetching IAM users...${NC}\n"
   
   users=$(aws iam list-users --query 'Users[].[UserName,CreateDate,Arn]' --output text)
   
   if [ -z "$users" ]; then
-    echo -e "\n ❌ No users found.\n"
+    echo -e "\n${RED} ❌ No users found.${NC}\n"
   else
-    echo -e "👥 IAM Users:\n"
-    echo "$users" | awk '{printf "%-30s %-25s %s\n", $1, $2, $3}'
+    echo -e "${GREEN}👥 IAM Users:${NC}\n"
+    echo "$users" | awk -v cyan="$CYAN" -v white="$WHITE" -v nc="$NC" '{printf cyan"%-30s"nc" "white"%-25s %s"nc"\n", $1, $2, $3}'
     echo ""
   fi
   
@@ -97,7 +109,7 @@ select_user() {
   users=$(aws iam list-users --query 'Users[].UserName' --output text)
   
   if [ -z "$users" ]; then
-    echo -e "\n ❌ No users found.\n"
+    echo -e "\n${RED} ❌ No users found.${NC}\n"
     return 1
   fi
   
@@ -116,7 +128,7 @@ select_user() {
 attach_policy_to_user() {
   local USER=$1
   
-  echo -e "\n 🔒 Select policy to attach:"
+  echo -e "\n${YELLOW} 🔒 Select policy to attach:${NC}"
   PS3=$'\nChoose policy: '
   select POLICY in \
     "AdministratorAccess" \
@@ -143,13 +155,13 @@ attach_policy_to_user() {
     esac
     
     if [ -n "$POLICY_ARN" ]; then
-      echo -e "\n 📎 Attaching policy to user '$USER'..."
+      echo -e "\n${CYAN} 📎 Attaching policy to user '${WHITE}$USER${CYAN}'...${NC}"
       aws iam attach-user-policy --user-name "$USER" --policy-arn "$POLICY_ARN"
       
       if [ $? -eq 0 ]; then
-        echo -e "\n ✅ Policy attached successfully!"
+        echo -e "\n${GREEN} ✅ Policy attached successfully!${NC}"
       else
-        echo -e "\n ❌ Failed to attach policy."
+        echo -e "\n${RED} ❌ Failed to attach policy.${NC}"
       fi
     fi
     break
@@ -158,7 +170,7 @@ attach_policy_to_user() {
 
 # Attach Policy (menu option)
 attach_policy() {
-  echo -e "\n 🔍 Fetching IAM users..."
+  echo -e "\n${CYAN} 🔍 Fetching IAM users...${NC}"
   select_user || { main_menu; return; }
   
   attach_policy_to_user "$USERNAME"
@@ -171,29 +183,29 @@ attach_policy() {
 create_access_key_for_user() {
   local USER=$1
   
-  echo -e "\n 🔑 Creating access key for user '$USER'..."
+  echo -e "\n${CYAN} 🔑 Creating access key for user '${WHITE}$USER${CYAN}'...${NC}"
   OUTPUT=$(aws iam create-access-key --user-name "$USER" --output json)
   
   if [ $? -eq 0 ]; then
     ACCESS_KEY=$(echo "$OUTPUT" | grep -o '"AccessKeyId": "[^"]*' | cut -d'"' -f4)
     SECRET_KEY=$(echo "$OUTPUT" | grep -o '"SecretAccessKey": "[^"]*' | cut -d'"' -f4)
     
-    echo -e "\n ✅ Access key created successfully!\n"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "⚠️  SAVE THESE CREDENTIALS - THEY WON'T BE SHOWN AGAIN"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "Access Key ID:     $ACCESS_KEY"
-    echo "Secret Access Key: $SECRET_KEY"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "\n${GREEN} ✅ Access key created successfully!${NC}\n"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${RED}⚠️  SAVE THESE CREDENTIALS - THEY WON'T BE SHOWN AGAIN${NC}"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}Access Key ID:${NC}     ${WHITE}$ACCESS_KEY${NC}"
+    echo -e "${CYAN}Secret Access Key:${NC} ${WHITE}$SECRET_KEY${NC}"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
   else
-    echo -e "\n ❌ Failed to create access key."
+    echo -e "\n${RED} ❌ Failed to create access key.${NC}"
   fi
 }
 
 # Create Access Key (menu option)
 create_access_key() {
-  echo -e "\n 🔍 Fetching IAM users..."
+  echo -e "\n${CYAN} 🔍 Fetching IAM users...${NC}"
   select_user || { main_menu; return; }
   
   create_access_key_for_user "$USERNAME"
@@ -202,26 +214,46 @@ create_access_key() {
   main_menu
 }
 
-# Delete IAM User
-delete_user() {
-  echo -e "\n 🔍 Fetching IAM users..."
+# Show Access Keys
+show_access_keys() {
+  echo -e "\n${CYAN} 🔍 Fetching IAM users...${NC}"
   select_user || { main_menu; return; }
   
-  echo -e "\n ⚠️  You chose to DELETE user: $USERNAME"
+  echo -e "\n${GREEN} 🔑 Access keys for user '${WHITE}$USERNAME${GREEN}':${NC}\n"
+  
+  keys=$(aws iam list-access-keys --user-name "$USERNAME" --query 'AccessKeyMetadata[].[AccessKeyId,Status,CreateDate]' --output text)
+  
+  if [ -z "$keys" ]; then
+    echo -e "${RED} ❌ No access keys found for this user.${NC}\n"
+  else
+    echo "$keys" | awk -v cyan="$CYAN" -v green="$GREEN" -v white="$WHITE" -v nc="$NC" '{printf cyan"%-25s "nc green"%-10s "nc white"%s"nc"\n", $1, $2, $3}'
+    echo ""
+  fi
+  
+  read -p "Press Enter to return to main menu..."
+  main_menu
+}
+
+# Delete IAM User
+delete_user() {
+  echo -e "\n${CYAN} 🔍 Fetching IAM users...${NC}"
+  select_user || { main_menu; return; }
+  
+  echo -e "\n${YELLOW} ⚠️  You chose to DELETE user: ${WHITE}$USERNAME${NC}"
   read -p "❗ This is permanent. Are you sure? (y/n): " confirm
   
   if [[ "$confirm" == "y" ]]; then
-    echo -e "\n 🗑️  Deleting user '$USERNAME'..."
+    echo -e "\n${RED} 🗑️  Deleting user '${WHITE}$USERNAME${RED}'...${NC}"
     
     # Delete access keys first
-    echo "Removing access keys..."
+    echo -e "${YELLOW}Removing access keys...${NC}"
     ACCESS_KEYS=$(aws iam list-access-keys --user-name "$USERNAME" --query 'AccessKeyMetadata[].AccessKeyId' --output text)
     for KEY in $ACCESS_KEYS; do
       aws iam delete-access-key --user-name "$USERNAME" --access-key-id "$KEY"
     done
     
     # Detach managed policies
-    echo "Detaching policies..."
+    echo -e "${YELLOW}Detaching policies...${NC}"
     POLICIES=$(aws iam list-attached-user-policies --user-name "$USERNAME" --query 'AttachedPolicies[].PolicyArn' --output text)
     for POLICY in $POLICIES; do
       aws iam detach-user-policy --user-name "$USERNAME" --policy-arn "$POLICY"
@@ -237,12 +269,12 @@ delete_user() {
     aws iam delete-user --user-name "$USERNAME"
     
     if [ $? -eq 0 ]; then
-      echo -e "\n ✅ User '$USERNAME' deleted successfully!\n"
+      echo -e "\n${GREEN} ✅ User '${WHITE}$USERNAME${GREEN}' deleted successfully!${NC}\n"
     else
-      echo -e "\n ❌ Failed to delete user.\n"
+      echo -e "\n${RED} ❌ Failed to delete user.${NC}\n"
     fi
   else
-    echo -e "\n 🚫 Delete action canceled.\n"
+    echo -e "\n${YELLOW} 🚫 Delete action canceled.${NC}\n"
   fi
   
   read -p "Press Enter to return to main menu..."

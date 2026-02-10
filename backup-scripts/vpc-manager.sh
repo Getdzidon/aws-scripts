@@ -2,34 +2,24 @@
 
 #####--- VPC Management Script ---#####
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-NC='\033[0m'
-
 DEFAULT_REGION="eu-central-1"
 
 main_menu() {
   clear
-  echo -e "${CYAN}======================================${NC}"
-  echo -e "${WHITE}🌐 VPC Management${NC}"
-  echo -e "${CYAN}======================================${NC}"
-  echo -e "${GREEN}1)${NC} Full VPC Setup (VPC + Subnets + IGW + Routes)"
-  echo -e "${GREEN}2)${NC} Create VPC Only"
-  echo -e "${GREEN}3)${NC} Create Subnet"
-  echo -e "${GREEN}4)${NC} Create Internet Gateway"
-  echo -e "${GREEN}5)${NC} Create Route Table"
-  echo -e "${GREEN}6)${NC} Create Security Group"
-  echo -e "${GREEN}7)${NC} Manage Security Group Rules"
-  echo -e "${GREEN}8)${NC} List VPCs"
-  echo -e "${GREEN}9)${NC} Delete VPC"
-  echo -e "${GREEN}10)${NC} Exit"
-  echo -e "${CYAN}======================================${NC}"
+  echo "======================================"
+  echo "🌐 VPC Management"
+  echo "======================================"
+  echo "1) Full VPC Setup (VPC + Subnets + IGW + Routes)"
+  echo "2) Create VPC Only"
+  echo "3) Create Subnet"
+  echo "4) Create Internet Gateway"
+  echo "5) Create Route Table"
+  echo "6) Create Security Group"
+  echo "7) Manage Security Group Rules"
+  echo "8) List VPCs"
+  echo "9) Delete VPC"
+  echo "10) Exit"
+  echo "======================================"
 
   read -p "Choose an option: " choice
 
@@ -43,13 +33,13 @@ main_menu() {
     7) manage_sg_rules ;;
     8) list_vpcs ;;
     9) delete_vpc ;;
-    10) echo -e "\n${YELLOW} 👋 Exiting...${NC}"; exit 0 ;;
-    *) echo -e "\n${RED} ❌ Invalid selection${NC}"; sleep 1; main_menu ;;
+    10) echo -e "\n 👋 Exiting..."; exit 0 ;;
+    *) echo -e "\n ❌ Invalid selection"; sleep 1; main_menu ;;
   esac
 }
 
 select_region() {
-  echo -e "\n${CYAN} 🌍 Select AWS Region:${NC}"
+  echo -e "\n 🌍 Select AWS Region:"
   PS3=$'\nChoose region: '
   select REGION in "eu-central-1 (Frankfurt)" "us-east-1 (N. Virginia)" "us-west-2 (Oregon)" "Custom"; do
     case $REGION in
@@ -59,11 +49,11 @@ select_region() {
       "Custom") read -p "Enter region code: " REGION; break ;;
     esac
   done
-  echo -e "\n${GREEN} ✅ Selected region: ${WHITE}$REGION${NC}"
+  echo -e "\n ✅ Selected region: $REGION"
 }
 
 create_vpc() {
-  echo -e "\n${BLUE} 🌐 Creating VPC...${NC}"
+  echo -e "\n 🌐 Creating VPC..."
   
   select_region
   
@@ -71,7 +61,7 @@ create_vpc() {
   read -p "Enter CIDR block (default: 10.0.0.0/16): " CIDR_BLOCK
   CIDR_BLOCK=${CIDR_BLOCK:-10.0.0.0/16}
   
-  echo -e "\n${CYAN} 🚀 Creating VPC with CIDR $CIDR_BLOCK...${NC}"
+  echo -e "\n 🚀 Creating VPC with CIDR $CIDR_BLOCK..."
   VPC_ID=$(aws ec2 create-vpc --cidr-block "$CIDR_BLOCK" --region "$REGION" --query 'Vpc.VpcId' --output text)
   
   if [ $? -eq 0 ]; then
@@ -79,10 +69,10 @@ create_vpc() {
     aws ec2 modify-vpc-attribute --vpc-id "$VPC_ID" --enable-dns-hostnames --region "$REGION"
     aws ec2 modify-vpc-attribute --vpc-id "$VPC_ID" --enable-dns-support --region "$REGION"
     
-    echo -e "\n${GREEN} ✅ VPC created successfully!${NC}"
-    echo -e "${CYAN}📍 VPC ID:${NC} ${WHITE}$VPC_ID${NC}\n"
+    echo -e "\n ✅ VPC created successfully!"
+    echo -e "📍 VPC ID: $VPC_ID\n"
   else
-    echo -e "\n${RED} ❌ Failed to create VPC.${NC}\n"
+    echo -e "\n ❌ Failed to create VPC.\n"
   fi
   
   read -p "Press Enter to return to main menu..."
